@@ -1,0 +1,61 @@
+#!/bin/bash
+
+function show_help {
+	echo "Usage: $0 <OPTIONS> -q <QUERY>"
+	echo "	-q=<QUERY> == query that will be inserted in to the query template (eg: level:ERROR)"
+	echo "	-w=<warning level> == set warning threshold"
+	echo "	-c=<critical level> == set critical threshold"
+	echo "	-t=<query template> == use another query template than the simple one built in"
+	echo "	-v == verbose"
+}
+
+export verbose=0
+export query=""
+export warning_threshold=1
+export critical_treshold=2
+export template=""
+
+while getopts "h?q:w:c:t:v" opt; do
+	case "$opt" in
+	v)
+		verbose=1
+		;;
+	q)
+		query=$OPTARG
+		;;
+	w)
+		warning_treshold=$OPTARG
+		;;
+	c)
+		critical_treshold=$OPTARG
+		;;
+	t)
+		template=$OPTARG
+		;;
+	h|\?)
+		show_help
+		exit 0
+		;;
+	esac
+done
+
+BASEDIR="/opt/logstash_count"
+COUNT=`bash $BASEDIR/logstash_count.sh -q \"$query\" $template`
+
+if [ $? -gt 0 ]; then
+	echo "UNKNOWN: could not execute logstash_count: $COUNT"
+	exit 3
+fi
+
+if [ $COUNT -gt $critical_treshold ]; then
+	echo "CRITICAL: query returned $COUNT hits"
+	exit 2
+fi
+
+if [ $COUNT -gt $warning_threshold ]; then
+	echo "WARNING: query returned $COUNT hits"
+	exit 1
+fi
+
+echo "OK: query retuned $COUNT hits"
+exit 0
